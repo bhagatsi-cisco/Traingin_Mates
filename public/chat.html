@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat Room - Training Mates</title>
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header {
+      background: rgba(0, 0, 0, 0.1);
+      backdrop-filter: blur(10px);
+      color: white;
+      padding: 15px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    }
+
+    .header-title {
+      font-size: 1.5em;
+      font-weight: 700;
+    }
+
+    .room-info {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+      font-size: 0.95em;
+    }
+
+    .room-code {
+      background: rgba(255, 255, 255, 0.2);
+      padding: 8px 15px;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    .room-code:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    .user-count {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      background: #4ade80;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .container {
+      display: flex;
+      flex: 1;
+      max-width: 1200px;
+      width: 100%;
+      margin: 20px auto;
+      gap: 20px;
+      padding: 0 20px;
+    }
+
+    .main-chat {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: white;
+      border-radius: 15px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      overflow: hidden;
+    }
+
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .message {
+      display: flex;
+      gap: 12px;
+      animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateY(10px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    .message.system {
+      justify-content: center;
+      text-align: center;
+    }
+
+    .message.system .content {
+      background: #f0f0f0;
+      padding: 8px 15px;
+      border-radius: 20px;
+      color: #666;
+      font-size: 0.9em;
+      font-style: italic;
+    }
+
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      flex-shrink: 0;
+      font-size: 0.8em;
+    }
+
+    .message-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .message-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 5px;
+    }
+
+    .message-name {
+      font-weight: 600;
+      color: #333;
+    }
+
+    .message-time {
+      font-size: 0.75em;
+      color: #999;
+    }
+
+    .message-text {
+      background: #f5f5f5;
+      padding: 10px 15px;
+      border-radius: 10px;
+      color: #333;
+      word-wrap: break-word;
+      line-height: 1.5;
+    }
+
+    .own-message .message-text {
+      background: #667eea;
+      color: white;
+    }
+
+    .typing-indicator {
+      display: flex;
+      gap: 4px;
+      padding: 10px 15px;
+      background: #f5f5f5;
+      border-radius: 10px;
+      width: fit-content;
+    }
+
+    .typing-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #999;
+      animation: typing 1.4s infinite;
+    }
+
+    .typing-dot:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .typing-dot:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+
+    @keyframes typing {
+      0%, 60%, 100% {
+        transform: translateY(0);
+        opacity: 0.7;
+      }
+      30% {
+        transform: translateY(-10px);
+        opacity: 1;
+      }
+    }
+
+    .input-area {
+      padding: 20px;
+      border-top: 1px solid #eee;
+      display: flex;
+      gap: 10px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      padding: 12px 15px;
+      border: 2px solid #ddd;
+      border-radius: 25px;
+      font-size: 1em;
+      transition: border-color 0.3s ease;
+      font-family: inherit;
+    }
+
+    input[type="text"]:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    input[type="text"]::placeholder {
+      color: #999;
+    }
+
+    .send-btn {
+      padding: 12px 25px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 25px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      font-size: 0.95em;
+    }
+
+    .send-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+    }
+
+    .send-btn:active {
+      transform: translateY(0);
+    }
+
+    .send-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .sidebar {
+      width: 250px;
+      background: white;
+      border-radius: 15px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar-title {
+      font-size: 1.1em;
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 15px;
+      border-bottom: 2px solid #667eea;
+      padding-bottom: 10px;
+    }
+
+    .users-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex: 1;
+    }
+
+    .user-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      border-radius: 8px;
+      background: #f5f5f5;
+      transition: all 0.3s ease;
+    }
+
+    .user-item:hover {
+      background: #efefef;
+    }
+
+    .user-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      font-size: 0.75em;
+      flex-shrink: 0;
+    }
+
+    .user-name {
+      flex: 1;
+      font-size: 0.95em;
+      color: #333;
+      word-break: break-word;
+    }
+
+    .user-status {
+      width: 8px;
+      height: 8px;
+      background: #4ade80;
+      border-radius: 50%;
+    }
+
+    .action-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 15px;
+      border-top: 1px solid #eee;
+      padding-top: 15px;
+    }
+
+    .btn-small {
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      font-size: 0.9em;
+    }
+
+    .btn-copy {
+      background: #667eea;
+      color: white;
+    }
+
+    .btn-copy:hover {
+      background: #764ba2;
+    }
+
+    .btn-home {
+      background: #f5f5f5;
+      color: #333;
+      border: 1px solid #ddd;
+    }
+
+    .btn-home:hover {
+      background: #efefef;
+    }
+
+    .empty-state {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: #999;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: white;
+      padding: 15px 25px;
+      border-radius: 8px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+      z-index: 1000;
+      animation: slideInRight 0.3s ease;
+    }
+
+    @keyframes slideInRight {
+      from {
+        transform: translateX(300px);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        flex-direction: column;
+      }
+
+      .sidebar {
+        width: 100%;
+      }
+
+      .room-info {
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .header {
+        flex-direction: column;
+        gap: 10px;
+      }
+    }
+
+    .messages::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .messages::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 10px;
+    }
+
+    .messages::-webkit-scrollbar-thumb {
+      background: #667eea;
+      border-radius: 10px;
+    }
+
+    .messages::-webkit-scrollbar-thumb:hover {
+      background: #764ba2;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-title">🗣️ Training Mates Chat</div>
+    <div class="room-info">
+      <div class="room-code" id="roomCode" title="Click to copy">Room: <strong id="roomId">...</strong></div>
+      <div class="user-count">
+        <div class="dot"></div>
+        <span id="userCount">1 person</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="main-chat">
+      <div class="messages" id="messages">
+        <div class="empty-state">
+          <div>
+            <p style="font-size: 2em; margin-bottom: 10px;">👋</p>
+            <p>Welcome to the chat room!</p>
+            <p style="font-size: 0.9em; margin-top: 10px; color: #bbb;">Messages will appear here</p>
+          </div>
+        </div>
+      </div>
+      <div class="input-area">
+        <input 
+          type="text" 
+          id="messageInput" 
+          placeholder="Type your message..." 
+          autocomplete="off"
+        >
+        <button class="send-btn" id="sendBtn">Send</button>
+      </div>
+    </div>
+
+    <div class="sidebar">
+      <div class="sidebar-title">👥 Users Online</div>
+      <div class="users-list" id="usersList">
+        <div style="text-align: center; color: #bbb; padding: 20px;">
+          Loading users...
+        </div>
+      </div>
+      <div class="action-buttons">
+        <button class="btn-small btn-copy" id="copyBtn">📋 Copy Room Code</button>
+        <button class="btn-small btn-home" id="homeBtn">🏠 Go Home</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Get room ID from URL
+    const params = new URLSearchParams(window.location.search);
+    const roomId = params.get('room');
+
+    if (!roomId) {
+      window.location.href = '/';
+    }
+
+    // Initialize Socket.IO
+    const socket = io();
+
+    let currentUserName = '';
+    let users = [];
+    const messagesDiv = document.getElementById('messages');
+    const messageInput = document.getElementById('messageInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const roomCodeDiv = document.getElementById('roomCode');
+    const roomIdSpan = document.getElementById('roomId');
+    const userCountSpan = document.getElementById('userCount');
+    const usersListDiv = document.getElementById('usersList');
+    const copyBtn = document.getElementById('copyBtn');
+    const homeBtn = document.getElementById('homeBtn');
+
+    roomIdSpan.textContent = roomId;
+
+    // Join the room
+    socket.emit('join-room', roomId, (response) => {
+      if (response.success) {
+        currentUserName = response.userName;
+        users = response.users || [];
+        
+        // Clear empty state and populate with history
+        if (response.messages.length > 0) {
+          messagesDiv.innerHTML = '';
+          response.messages.forEach(msg => {
+            addMessageToUI(msg);
+          });
+        }
+        
+        updateUsersList();
+        updateUserCount(response.userCount);
+      } else {
+        alert('Failed to join room: ' + response.error);
+        window.location.href = '/';
+      }
+    });
+
+    function addMessageToUI(messageObj) {
+      if (messagesDiv.querySelector('.empty-state')) {
+        messagesDiv.innerHTML = '';
+      }
+
+      const messageDiv = document.createElement('div');
+      messageDiv.className = 'message';
+      
+      if (messageObj.userName === 'SYSTEM') {
+        messageDiv.className += ' system';
+        messageDiv.innerHTML = `<div class="content">${messageObj.message}</div>`;
+      } else {
+        const isOwnMessage = messageObj.userName === currentUserName && 
+                             Math.random() > 0.5; // Simple check - in production, use userId
+        if (isOwnMessage) messageDiv.className += ' own-message';
+
+        const avatarInitial = messageObj.userName.charAt(0).toUpperCase();
+        const timeStr = new Date(messageObj.timestamp).toLocaleTimeString([], { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        });
+
+        messageDiv.innerHTML = `
+          <div class="avatar" style="background-color: ${messageObj.avatar};">${avatarInitial}</div>
+          <div class="message-content">
+            <div class="message-header">
+              <span class="message-name">${messageObj.userName}</span>
+              <span class="message-time">${timeStr}</span>
+            </div>
+            <div class="message-text">${escapeHtml(messageObj.message)}</div>
+          </div>
+        `;
+      }
+
+      messagesDiv.appendChild(messageDiv);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function updateUsersList() {
+      if (users.length === 0) {
+        usersListDiv.innerHTML = '<div style="text-align: center; color: #bbb;">No users</div>';
+        return;
+      }
+
+      usersListDiv.innerHTML = users.map(user => {
+        const initial = user.name.charAt(0).toUpperCase();
+        const avatarColor = generateAvatarColor(user.name);
+        return `
+          <div class="user-item">
+            <div class="user-avatar" style="background-color: ${avatarColor};">${initial}</div>
+            <div class="user-name">${escapeHtml(user.name)}</div>
+            <div class="user-status"></div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function generateAvatarColor(userName) {
+      const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#6C5CE7', '#A29BFE', '#FD79A8'];
+      const hash = userName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+      return colors[hash % colors.length];
+    }
+
+    function updateUserCount(count) {
+      userCountSpan.textContent = count + (count === 1 ? ' person' : ' people');
+    }
+
+    // Send message
+    function sendMessage() {
+      const message = messageInput.value.trim();
+      if (!message) return;
+
+      socket.emit('send-message', {
+        roomId,
+        message
+      });
+
+      messageInput.value = '';
+      messageInput.focus();
+    }
+
+    sendBtn.addEventListener('click', sendMessage);
+    messageInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    messageInput.addEventListener('input', () => {
+      socket.emit('user-typing', roomId);
+    });
+
+    // Socket events
+    socket.on('receive-message', (messageObj) => {
+      addMessageToUI(messageObj);
+    });
+
+    socket.on('user-joined', (data) => {
+      users.push({ id: data.userId, name: data.userName });
+      updateUsersList();
+      updateUserCount(data.userCount);
+
+      const systemMsg = {
+        userName: 'SYSTEM',
+        message: `${data.userName} joined the chat`,
+        timestamp: new Date(),
+        avatar: '#999'
+      };
+      addMessageToUI(systemMsg);
+    });
+
+    socket.on('user-left', (data) => {
+      updateUserCount(data.userCount);
+
+      const systemMsg = {
+        userName: 'SYSTEM',
+        message: `${data.userName} left the chat`,
+        timestamp: new Date(),
+        avatar: '#999'
+      };
+      addMessageToUI(systemMsg);
+    });
+
+    socket.on('user-typing', (data) => {
+      // Could implement a typing indicator here
+      console.log(data.userName + ' is typing...');
+    });
+
+    // Copy room code
+    copyBtn.addEventListener('click', () => {
+      const link = `${window.location.origin}/?room=${roomId}`;
+      navigator.clipboard.writeText(link).then(() => {
+        showNotification('Room link copied to clipboard! 📋');
+        copyBtn.textContent = '✅ Copied!';
+        setTimeout(() => {
+          copyBtn.textContent = '📋 Copy Room Code';
+        }, 2000);
+      });
+    });
+
+    roomCodeDiv.addEventListener('click', () => {
+      copyBtn.click();
+    });
+
+    // Go home
+    homeBtn.addEventListener('click', () => {
+      window.location.href = '/';
+    });
+
+    function showNotification(message) {
+      const notif = document.createElement('div');
+      notif.className = 'notification';
+      notif.textContent = message;
+      document.body.appendChild(notif);
+      setTimeout(() => {
+        notif.remove();
+      }, 3000);
+    }
+
+    // Focus input on load
+    messageInput.focus();
+  </script>
+</body>
+</html>

@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Training Mates - Anonymous Chat</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: white;
+      border-radius: 15px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      padding: 50px;
+      max-width: 500px;
+      width: 100%;
+      text-align: center;
+      animation: slideUp 0.5s ease;
+    }
+
+    @keyframes slideUp {
+      from {
+        transform: translateY(30px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+      font-size: 2.5em;
+    }
+
+    .subtitle {
+      color: #666;
+      margin-bottom: 40px;
+      font-size: 1.1em;
+    }
+
+    .button-group {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      margin-bottom: 30px;
+    }
+
+    button {
+      padding: 15px 30px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1.1em;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .btn-create {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .btn-create:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-create:active {
+      transform: translateY(0);
+    }
+
+    .input-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      padding: 12px 15px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 1em;
+      transition: border-color 0.3s ease;
+    }
+
+    input[type="text"]:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .btn-join {
+      padding: 12px 25px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+
+    .btn-join:hover {
+      background: #764ba2;
+      transform: translateY(-2px);
+    }
+
+    .info {
+      background: #f0f4ff;
+      border-left: 4px solid #667eea;
+      padding: 15px;
+      border-radius: 5px;
+      text-align: left;
+      color: #555;
+      font-size: 0.95em;
+      line-height: 1.6;
+      margin-top: 20px;
+    }
+
+    .info strong {
+      color: #333;
+    }
+
+    .footer {
+      margin-top: 30px;
+      color: #999;
+      font-size: 0.9em;
+    }
+
+    .error {
+      background: #ffe0e0;
+      color: #c00;
+      padding: 10px;
+      border-radius: 5px;
+      margin-top: 15px;
+      display: none;
+    }
+
+    .success {
+      background: #e0ffe0;
+      color: #00a000;
+      padding: 10px;
+      border-radius: 5px;
+      margin-top: 15px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🗣️ Training Mates</h1>
+    <p class="subtitle">Anonymous Chat & Collaboration</p>
+
+    <div class="button-group">
+      <button class="btn-create" id="createBtn">Create New Chat Room</button>
+    </div>
+
+    <div>
+      <p style="color: #666; margin-bottom: 15px;">OR</p>
+      <div class="input-group">
+        <input 
+          type="text" 
+          id="roomInput" 
+          placeholder="Enter room code (e.g., ABC12345)" 
+          maxlength="10"
+        >
+        <button class="btn-join" id="joinBtn">Join</button>
+      </div>
+    </div>
+
+    <div class="error" id="error"></div>
+    <div class="success" id="success"></div>
+
+    <div class="info">
+      <strong>✨ How it works:</strong><br>
+      1. Click "Create New Chat Room" to start a new room<br>
+      2. Share the room code with others<br>
+      3. Everyone joins anonymously<br>
+      4. Start chatting instantly!
+    </div>
+
+    <div class="footer">
+      <p>Your privacy is protected. No personal data collected. 🔒</p>
+    </div>
+  </div>
+
+  <script>
+    const createBtn = document.getElementById('createBtn');
+    const joinBtn = document.getElementById('joinBtn');
+    const roomInput = document.getElementById('roomInput');
+    const errorDiv = document.getElementById('error');
+    const successDiv = document.getElementById('success');
+
+    function showError(message) {
+      errorDiv.textContent = message;
+      errorDiv.style.display = 'block';
+      successDiv.style.display = 'none';
+      setTimeout(() => {
+        errorDiv.style.display = 'none';
+      }, 5000);
+    }
+
+    function showSuccess(message) {
+      successDiv.textContent = message;
+      successDiv.style.display = 'block';
+      errorDiv.style.display = 'none';
+      setTimeout(() => {
+        successDiv.style.display = 'none';
+      }, 3000);
+    }
+
+    createBtn.addEventListener('click', async () => {
+      try {
+        const response = await fetch('/api/rooms', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await response.json();
+        window.location.href = `/chat?room=${data.roomId}`;
+      } catch (error) {
+        showError('Failed to create room. Please try again.');
+        console.error(error);
+      }
+    });
+
+    joinBtn.addEventListener('click', () => {
+      const roomId = roomInput.value.trim().toUpperCase();
+      if (!roomId) {
+        showError('Please enter a room code');
+        return;
+      }
+      window.location.href = `/chat?room=${roomId}`;
+    });
+
+    roomInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        joinBtn.click();
+      }
+    });
+  </script>
+</body>
+</html>
